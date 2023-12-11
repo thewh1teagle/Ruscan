@@ -11,15 +11,12 @@ interface ScanReportProps {
 }
 export default function ScanReport({ hosts }: ScanReportProps) {
   return (
-    <ul role="list" className="divide-y divide-gray-100">
+    <ul role="list" className="divide-y divide-neutral">
       {hosts.map(host => (
         <li key={host.host} className="flex justify-between gap-x-6 py-5 flex-col text-center lg:flex-row items-center">
-
-        <div className="rounded-full w-3 h-3 bg-green-500" />
-
-
-
-
+          <div className="w-[500px] lg:w-[100px] flex items-center justify-center">
+            <div className="rounded-full w-3 h-3 bg-success" />
+          </div>
           <div className="min-w-0 flex-auto w-[500px] lg:w-[100px] overflow-auto">
             <p className="text-sm font-semibold leading-6 ">IP</p>
             <ScanField>{host.host}</ScanField>
