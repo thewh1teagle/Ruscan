@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::io::ErrorKind::TimedOut;
-use std::convert::TryInto;
 
 use dns_lookup::lookup_addr;
 use ipnetwork::IpNetwork;
@@ -13,32 +12,15 @@ use pnet_datalink::{MacAddr, NetworkInterface, DataLinkSender, DataLinkReceiver}
 use pnet::packet::{MutablePacket, Packet};
 use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
 use pnet::packet::arp::{MutableArpPacket, ArpOperations, ArpHardwareTypes, ArpPacket};
-use pnet::packet::vlan::{ClassOfService, MutableVlanPacket};
-use rand::prelude::*;
 
-
+use log::{error,debug};
 use crate::vendor::Vendor;
-use crate::utils;
 
 pub const DATALINK_RCV_TIMEOUT: u64 = 500;
 
-const VLAN_QOS_DEFAULT: u8 = 1;
 const ARP_PACKET_SIZE: usize = 28;
-const VLAN_PACKET_SIZE: usize = 32;
 
 const ETHERNET_STD_PACKET_SIZE: usize = 42;
-const ETHERNET_VLAN_PACKET_SIZE: usize = 46;
-
-/**
- * Contains scan estimation records. This will be computed before the scan
- * starts and should give insights about the scan.
- */
-pub struct ScanEstimation {
-    pub interval_ms: u64,
-    pub duration_ms: u128,
-    pub request_size: u128,
-    pub bandwidth: u128
-}
 
 /**
  * Gives high-level details about the scan response. This may include Ethernet
@@ -79,8 +61,8 @@ pub struct TargetDetails {
 //             match name {
 //                 Some(name) => name,
 //                 None => {
-//                     eprintln!("Could not find a default network interface");
-//                     eprintln!("Use 'arp scan -l' to list available interfaces");
+//                     error!("Could not find a default network interface");
+//                     error!("Use 'arp scan -l' to list available interfaces");
 //                     process::exit(1);
 //                 }
 //             }
@@ -90,8 +72,8 @@ pub struct TargetDetails {
 //     let selected_interface: &NetworkInterface = interfaces.iter()
 //         .find(|interface| { interface.name == interface_name && interface.is_up() && !interface.is_loopback() })
 //         .unwrap_or_else(|| {
-//             eprintln!("Could not find interface with name {}", interface_name);
-//             eprintln!("Make sure the interface is up, not loopback and has a valid IPv4");
+//             error!("Could not find interface with name {}", interface_name);
+//             error!("Make sure the interface is up, not loopback and has a valid IPv4");
 //             process::exit(1);
 //         });
 
@@ -116,7 +98,7 @@ pub struct TargetDetails {
 //         false => ETHERNET_STD_PACKET_SIZE.try_into().expect("Internal number conversion failed for Ethernet packet size")
 //     };
 //     let retry_count: u128 = options.retry_count.try_into().unwrap_or_else(|err| {
-//         eprintln!("[warn] Could not cast retry count, defaults to 1 - {}", err);
+//         error!("[warn] Could not cast retry count, defaults to 1 - {}", err);
 //         1
 //     });
 
@@ -171,7 +153,7 @@ pub fn send_arp_request(tx: &mut Box<dyn DataLinkSender>, interface: &NetworkInt
 
     let mut ethernet_buffer = vec![0u8; ETHERNET_STD_PACKET_SIZE];
     let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap_or_else(|| {
-        eprintln!("Could not build Ethernet packet");
+        error!("Could not build Ethernet packet");
         process::exit(1);
     });
 
@@ -185,7 +167,7 @@ pub fn send_arp_request(tx: &mut Box<dyn DataLinkSender>, interface: &NetworkInt
 
     let mut arp_buffer = [0u8; ARP_PACKET_SIZE];
     let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap_or_else(|| {
-        eprintln!("Could not build ARP packet");
+        error!("Could not build ARP packet");
         process::exit(1);
     });
 
@@ -221,7 +203,7 @@ impl NetworkIterator {
 
         // The IpNetwork struct implements the Clone trait, which means that a simple
         // dereference will clone the struct in the new vector
-        let mut networks: Vec<IpNetwork> = networks_ref.iter().map(|network| *(*network)).collect();
+        let networks: Vec<IpNetwork> = networks_ref.iter().map(|network| *(*network)).collect();
 
 
         NetworkIterator {
@@ -238,22 +220,6 @@ impl NetworkIterator {
 
     fn has_no_items_left(&self) -> bool {
         self.current_iterator.is_none() && self.networks.is_empty() && self.random_pool.is_empty()
-    }
-
-    fn fill_random_pool(&mut self) {
-
-        for _ in 0..1000 {
-
-            let next_ip = self.current_iterator.as_mut().unwrap().next();
-            if next_ip.is_none() {
-                break;
-            }
-
-            self.random_pool.push(next_ip.unwrap());
-        }
-
-        let mut rng = rand::thread_rng();
-        self.random_pool.shuffle(&mut rng);
     }
 
     fn select_new_iterator(&mut self) {
@@ -310,7 +276,7 @@ pub fn find_source_ip(network_interface: &NetworkInterface) -> Ipv4Addr {
     match potential_network.map(|network| network.ip()) {
         Some(IpAddr::V4(ipv4_addr)) => ipv4_addr,
         _ => {
-            eprintln!("Expected IPv4 address on network interface");
+            error!("Expected IPv4 address on network interface");
             process::exit(1);
         }
     }
@@ -345,7 +311,7 @@ pub fn receive_arp_responses(rx: &mut Box<dyn DataLinkReceiver>, timed_out: Arc<
                     // due to the lack of packets received.
                     TimedOut => continue,
                     _ => {
-                        eprintln!("Failed to receive ARP requests ({})", error);
+                        error!("Failed to receive ARP requests ({})", error);
                         process::exit(1);
                     }
                 };
@@ -393,7 +359,7 @@ pub fn receive_arp_responses(rx: &mut Box<dyn DataLinkReceiver>, timed_out: Arc<
 
         if vendor_list.has_vendor_db() {
             target_detail.vendor = vendor_list.search_by_mac(&target_detail.mac);
-            println!("found vendor is {:?}", target_detail.vendor);
+            debug!("found vendor is {:?}", target_detail.vendor);
         }
 
         target_detail

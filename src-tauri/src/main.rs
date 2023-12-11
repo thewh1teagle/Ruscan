@@ -7,9 +7,9 @@ mod utils;
 mod network;
 mod vendor;
 use std::{sync::{atomic::{AtomicBool, Ordering}, Arc}, net::IpAddr, thread, time::Duration, process};
-
+use env_logger;
 use crate::{network::NetworkIterator, vendor::Vendor};
-
+use log::{debug,error};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SelectInterface {
@@ -42,7 +42,7 @@ fn get_interfaces() -> Vec<SelectInterface> {
         // default interfaces come first
         b_default.cmp(&a_default)
     });
-    println!("raw interfaces are {raw_interfaces:?}");
+    debug!("raw interfaces are {raw_interfaces:?}");
     let interfaces: Vec<SelectInterface> = raw_interfaces
         .iter()
         .map(|i| SelectInterface {index: i.index, name: i.description.clone()})
@@ -54,31 +54,27 @@ fn get_interfaces() -> Vec<SelectInterface> {
 }
 
 #[tauri::command]
-fn scan(interface: SelectInterface) -> Vec<Host> {
+async fn scan(interface: SelectInterface) -> Vec<Host> {
     let raw_interfaces: Vec<NetworkInterface> = pnet_datalink::interfaces();
     let selected = raw_interfaces.iter().find(|i| i.index == interface.index).unwrap();
 
 
     let ip_networks: Vec<&ipnetwork::IpNetwork> = selected.ips.iter().filter(|ip_network| ip_network.is_ipv4()).collect();
-    println!("found ips {:?}", ip_networks);
+    debug!("found ips {:?}", ip_networks);
     let channel_config = pnet_datalink::Config {
         read_timeout: Some(Duration::from_millis(network::DATALINK_RCV_TIMEOUT)), 
         ..pnet_datalink::Config::default()
     };
 
-
-    
-
-
-    println!("scanning with {interface:?}");
+    debug!("scanning with {interface:?}");
     let (mut tx, mut rx) = match pnet_datalink::channel(selected, channel_config) {
         Ok(pnet_datalink::Channel::Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => {
-            eprintln!("Expected an Ethernet datalink channel");
+            error!("Expected an Ethernet datalink channel");
             process::exit(1);
         },
         Err(error) => {
-            eprintln!("Datalink channel creation failed ({})", error);
+            error!("Datalink channel creation failed ({})", error);
             process::exit(1);
         }
     };
@@ -101,7 +97,7 @@ fn scan(interface: SelectInterface) -> Vec<Host> {
         }
 
         let mut ip_addresses = NetworkIterator::new(&ip_networks);
-        println!("doing loop in {}", ip_addresses.len());
+        debug!("doing loop in {}", ip_addresses.len());
         for ip_address in ip_addresses {
 
             if has_reached_timeout.load(Ordering::Relaxed) {
@@ -109,37 +105,38 @@ fn scan(interface: SelectInterface) -> Vec<Host> {
             }
 
             if let IpAddr::V4(ipv4_address) = ip_address {
-                println!("sending arp to {ipv4_address:?}");
+                debug!("sending arp to {ipv4_address:?}");
                 network::send_arp_request(&mut tx, selected, source_ip, ipv4_address);
                 // thread::sleep(Duration::from_millis(50));
             }
         }
     }
-    println!("done for loop");
+    debug!("done for loop");
 
         // Once the ARP packets are sent, the main thread will sleep for T seconds
     // (where T is the timeout option). After the sleep phase, the response
     // thread will receive a stop request through the 'timed_out' mutex.
     let mut sleep_ms_mount: u64 = 0;
     while !has_reached_timeout.load(Ordering::Relaxed) && sleep_ms_mount < 2000 {
-        println!("sleeping for 100ms");
+        debug!("sleeping for 100ms");
         thread::sleep(Duration::from_millis(100));
         sleep_ms_mount += 100;
-        println!("sleep ms mount is {sleep_ms_mount}");
+        debug!("sleep ms mount is {sleep_ms_mount}");
     }
-    println!("done while loop");
+    debug!("done while loop");
     timed_out.store(true, Ordering::Relaxed);
 
-    let (response_summary, target_details) = arp_responses.join().unwrap_or_else(|error| {
-        eprintln!("Failed to close receive thread ({:?})", error);
+    let (_, target_details) = arp_responses.join().unwrap_or_else(|error| {
+        error!("Failed to close receive thread ({:?})", error);
         process::exit(1);
     });
-    println!("response is {:?}", target_details);
+    debug!("response is {:?}", target_details);
     let found_hosts: Vec<Host> = target_details.iter().map(|t| Host {host: t.ipv4.to_string(), hostname: t.hostname.clone().unwrap_or_default(), mac: t.mac.to_string(), vendor: t.vendor.clone().unwrap_or_default()}).collect();
     return found_hosts;
 }
 
 fn main() {
+    env_logger::init();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![scan, get_interfaces])
         .run(tauri::generate_context!())

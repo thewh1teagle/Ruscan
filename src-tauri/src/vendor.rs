@@ -3,7 +3,7 @@ use std::process;
 
 use pnet_datalink::MacAddr;
 use csv::{Position, Reader};
-
+use log::{debug, error};
 // The Vendor structure performs search operations on a vendor database to find
 // which MAC address belongs to a specific vendor. All network vendors have a
 // dedicated MAC address range that is registered by the IEEE and maintained in
@@ -21,7 +21,7 @@ impl Vendor {
     pub fn new(path: &str) -> Self {
 
         let file_result = File::open(path);
-        println!("file result is {file_result:?}");
+        debug!("file result is {file_result:?}");
         match file_result {
             Ok(file) => Vendor {
                 reader: Some(Reader::from_reader(file)),
@@ -51,14 +51,14 @@ impl Vendor {
                 // Since we share a common instance of the CSV reader, it must be reset
                 // before each read (internal buffers will be cleared).
                 reader.seek(Position::new()).unwrap_or_else(|err| {
-                    eprintln!("Could not reset the CSV reader ({})", err);
+                    error!("Could not reset the CSV reader ({})", err);
                     process::exit(1);
                 });
 
                 for vendor_result in reader.records() {
             
                     let record = vendor_result.unwrap_or_else(|err| {
-                        eprintln!("Could not read CSV record ({})", err);
+                        error!("Could not read CSV record ({})", err);
                         process::exit(1);
                     });
                     let potential_oui = record.get(1).unwrap_or("");

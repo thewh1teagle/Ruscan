@@ -27,6 +27,8 @@ dns-lookup = "2.0"
 csv = "1.2"
 serde_yaml = "0.9"
 rand = "0.8.5"
+log = "0.4.20"
+env_logger = "0.10.1"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
