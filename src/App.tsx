@@ -66,7 +66,7 @@ function App() {
 
 
   return (
-    <div className="w-full h-[100vh] overflow-auto">
+    <div className="w-full h-[100vh] overflow-auto no-scrollbar">
       <div className="absolute right-20 top-10">
         <ThemeToggle />
       </div>
