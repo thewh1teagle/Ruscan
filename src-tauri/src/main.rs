@@ -1,5 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use tauri::Manager;
+use window_shadows::set_shadow;
 
 use pnet_datalink::NetworkInterface;
 use serde::{Deserialize, Serialize};
@@ -42,7 +44,6 @@ fn get_interfaces() -> Vec<SelectInterface> {
         // default interfaces come first
         b_default.cmp(&a_default)
     });
-    debug!("raw interfaces are {raw_interfaces:?}");
     let interfaces: Vec<SelectInterface> = raw_interfaces
         .iter()
         .map(|i| SelectInterface {index: i.index, name: i.description.clone()})
@@ -60,7 +61,6 @@ async fn scan(interface: SelectInterface) -> Vec<Host> {
 
 
     let ip_networks: Vec<&ipnetwork::IpNetwork> = selected.ips.iter().filter(|ip_network| ip_network.is_ipv4()).collect();
-    debug!("found ips {:?}", ip_networks);
     let channel_config = pnet_datalink::Config {
         read_timeout: Some(Duration::from_millis(network::DATALINK_RCV_TIMEOUT)), 
         ..pnet_datalink::Config::default()
@@ -113,7 +113,7 @@ async fn scan(interface: SelectInterface) -> Vec<Host> {
     }
     debug!("done for loop");
 
-        // Once the ARP packets are sent, the main thread will sleep for T seconds
+    // Once the ARP packets are sent, the main thread will sleep for T seconds
     // (where T is the timeout option). After the sleep phase, the response
     // thread will receive a stop request through the 'timed_out' mutex.
     let mut sleep_ms_mount: u64 = 0;
@@ -131,14 +131,29 @@ async fn scan(interface: SelectInterface) -> Vec<Host> {
         process::exit(1);
     });
     debug!("response is {:?}", target_details);
-    let found_hosts: Vec<Host> = target_details.iter().map(|t| Host {host: t.ipv4.to_string(), hostname: t.hostname.clone().unwrap_or_default(), mac: t.mac.to_string(), vendor: t.vendor.clone().unwrap_or_default()}).collect();
+    let mut found_hosts: Vec<Host> = target_details
+        .iter()
+        .map(|t| Host {host: t.ipv4.to_string(), hostname: t.hostname.clone().unwrap_or_default(), mac: t.mac.to_string(), vendor: t.vendor.clone().unwrap_or_default()})
+        .collect();
+    found_hosts.sort_by(|a, b| a.mac.cmp(&b.mac));
     return found_hosts;
 }
 
 fn main() {
     env_logger::init();
-    tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![scan, get_interfaces])
+    let builder = tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![scan, get_interfaces]);
+
+    #[cfg(any(windows, target_os = "macos"))]
+    let builder = builder
+        .setup(|app| {
+            let window = app.get_window("main").unwrap();
+            #[cfg(any(windows, target_os = "macos"))]
+            set_shadow(&window, true).expect("Unsupported platform!");
+            Ok(())
+        });
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
