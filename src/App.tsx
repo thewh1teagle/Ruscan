@@ -4,11 +4,13 @@ import "./App.css";
 import SelectInterface, { Interface } from "./components/SelectInterface";
 import ScanReport, { FoundHost } from "./components/ScanReport";
 import ThemeToggle from "./components/ThemeToggle";
+import { cx } from "./utils";
 
 function App() {
   const [interfaces, setInterfaces] = useState<Interface[]>([])
   const [selected, setSelected] = useState<Interface>()
   const [report, setReport] = useState<FoundHost[]>()
+  const [loading, setLoading] = useState(false)
 
   async function loadInterfaces() {
     const found = await invoke('get_interfaces') as Interface[]
@@ -22,9 +24,11 @@ function App() {
   }, [])
 
   async function scan() {
+    setLoading(true)
     const result = await invoke('scan', {interface: selected}) as FoundHost[]
     console.log('scan result => ', result)
     setReport(result)
+    setLoading(false)
   }
   
 
@@ -35,7 +39,7 @@ function App() {
       </div>
       <div className="flex flex-col w-[300px] items-center m-auto mt-10">
         <SelectInterface interfaces={interfaces} onChange={i => setSelected(i)} />
-        <button onClick={() => scan()} className="btn btn-primary w-full">Scan</button>
+        <button disabled={loading} onClick={() => scan()} className={cx("btn btn-primary w-full")}>{loading ? <span className="loading loading-spinner"/> : 'Scan'}</button>
       </div>
       <div className="max-w-[1000px] m-auto mt-10">
         {report && <ScanReport hosts={report} />}
