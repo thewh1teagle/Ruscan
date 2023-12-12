@@ -6,4 +6,4 @@
 Network Scanner 
 
 
-<img src="https://github.com/thewh1teagle/Ruscan/assets/61390950/a744aee1-cf1b-4169-b7d9-d77ff2d94b51">
+<kbd><img style="border-radius:50%" src="https://github.com/thewh1teagle/Ruscan/assets/61390950/8d420d4c-cf74-459b-a556-ff54f73c5267" ></kbd>
