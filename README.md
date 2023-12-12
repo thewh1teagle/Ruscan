@@ -7,3 +7,9 @@ Network Scanner
 
 
 <kbd><img style="border-radius:50%" src="https://github.com/thewh1teagle/Ruscan/assets/61390950/8d420d4c-cf74-459b-a556-ff54f73c5267" ></kbd>
+
+# Install
+Download Ruscan from [releases](https://github.com/thewh1teagle/Ruscan/releases)
+
+# Usage
+Select the network interface and click scan.
