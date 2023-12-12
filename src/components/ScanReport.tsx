@@ -27,8 +27,8 @@ export default function ScanReport({ hosts }: ScanReportProps) {
           </div>
           <div className="min-w-0 flex-auto w-[500px] lg:w-[100px] overflow-auto">
             <p className="text-sm font-semibold leading-6 ">MAC</p>
-            <div className="uppercase"><ScanField>aa:bb:cc:dd:ff</ScanField></div>
-            {/* <div className="uppercase"><ScanField>{host.mac}</ScanField></div> */}
+            {/* <div className="uppercase"><ScanField>aa:bb:cc:dd:ff</ScanField></div> */}
+            <div className="uppercase"><ScanField>{host.mac}</ScanField></div>
           </div>
           <div className="min-w-0 flex-auto w-[500px] lg:w-[100px] overflow-auto">
             <p className="text-sm font-semibold leading-6 ">Vendor</p>
