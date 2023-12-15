@@ -39,7 +39,7 @@ function App() {
   
   return (
     <div className="w-full h-[100vh] overflow-auto no-scrollbar">
-      <div className="absolute right-20 top-10">
+      <div className="absolute lg:right-20 lg:top-10 top-8 right-8">
         <ThemeToggle />
       </div>
       <div className="flex flex-col w-[300px] items-center m-auto mt-10">
@@ -47,7 +47,7 @@ function App() {
         <button disabled={loading} onClick={() => scan()} className={cx("btn btn-primary w-full mt-1.5")}>{loading ? <span className="loading loading-spinner" /> : 'Scan'}</button>
         {loading && <Progress />}
       </div>
-      <div className="max-w-[1000px] m-auto mt-10">
+      <div className="max-w-[1500px] m-auto mt-10">
         {report && <ScanReport hosts={report} />}
       </div>
 

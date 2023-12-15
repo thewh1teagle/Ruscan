@@ -32,7 +32,7 @@ export default function ScanField({ children }: { children: React.ReactNode }) {
             </div>
             <code
                 onClick={onClick}
-                className="px-2 py-[0.2px] cursor-pointer rounded-sm text-base-content rounded-1xl mt-1 text-xs bg-base-300">
+                className="px-2 py-[0.2px] allow-select cursor-pointer rounded-sm text-base-content rounded-1xl mt-1 text-sm bg-base-300">
                 {limitString(children!.toString())}
             </code>
         </div>
