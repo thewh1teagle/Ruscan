@@ -16,11 +16,14 @@
       "shell": {
         "all": false,
         "open": true
+      },
+      "fs": {
+        "scope": ["$RESOURCE/*"]
       }
     },
     "bundle": {
       "active": true,
-      "targets": "all",
+      "targets": ["nsis"],
       "identifier": "ruscan",
       "icon": [
         "icons/32x32.png",
@@ -28,6 +31,9 @@
         "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
+      ],
+      "resources": [
+        "assets/ieee-oui.csv"
       ]
     },
     "security": {
