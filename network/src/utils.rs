@@ -1,5 +1,4 @@
 use pnet_datalink::NetworkInterface;
-use serde::Serialize;
 
 
 pub fn is_default_interface(interface: &NetworkInterface) -> bool {
@@ -19,20 +18,3 @@ pub fn is_default_interface(interface: &NetworkInterface) -> bool {
 
     true
 }
-
-#[derive(Serialize)]
-struct SerializableResultItem {
-    ipv4: String,
-    mac: String,
-    hostname: String,
-    vendor: String
-}
-
-#[derive(Serialize)]
-struct SerializableGlobalResult {
-    packet_count: usize,
-    arp_count: usize,
-    duration_ms: u128,
-    results: Vec<SerializableResultItem>
-}
-

@@ -1,6 +1,6 @@
-use std::process;
 use std::net::{IpAddr, Ipv4Addr};
-use std::time::Instant;
+use std::thread;
+use std::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,7 +13,11 @@ use pnet::packet::{MutablePacket, Packet};
 use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket, EtherTypes};
 use pnet::packet::arp::{MutableArpPacket, ArpOperations, ArpHardwareTypes, ArpPacket};
 
-use log::{error,debug};
+use eyre::{eyre, ContextCompat, Result};
+use serde::{Deserialize, Serialize};
+
+mod vendor;
+mod utils;
 use crate::vendor::Vendor;
 
 pub const DATALINK_RCV_TIMEOUT: u64 = 500;
@@ -45,16 +49,13 @@ pub struct TargetDetails {
     pub vendor: Option<String>
 }
 
-pub fn send_arp_request(tx: &mut Box<dyn DataLinkSender>, interface: &NetworkInterface, source_ip: Ipv4Addr, target_ip: Ipv4Addr) {
+pub fn send_arp_request(tx: &mut Box<dyn DataLinkSender>, interface: &NetworkInterface, source_ip: Ipv4Addr, target_ip: Ipv4Addr) -> Result<()> {
 
     let mut ethernet_buffer = vec![0u8; ETHERNET_STD_PACKET_SIZE];
-    let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).unwrap_or_else(|| {
-        error!("Could not build Ethernet packet");
-        process::exit(1);
-    });
+    let mut ethernet_packet = MutableEthernetPacket::new(&mut ethernet_buffer).context("none")?;
 
     let target_mac = MacAddr::broadcast();
-    let source_mac = interface.mac.unwrap();
+    let source_mac = interface.mac.context("none")?;
     ethernet_packet.set_destination(target_mac);
     ethernet_packet.set_source(source_mac);
 
@@ -62,10 +63,7 @@ pub fn send_arp_request(tx: &mut Box<dyn DataLinkSender>, interface: &NetworkInt
     ethernet_packet.set_ethertype(selected_ethertype);
 
     let mut arp_buffer = [0u8; ARP_PACKET_SIZE];
-    let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap_or_else(|| {
-        error!("Could not build ARP packet");
-        process::exit(1);
-    });
+    let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).context("Can't build arp request")?;
 
     arp_packet.set_hardware_type(ArpHardwareTypes::Ethernet);
     arp_packet.set_protocol_type(EtherTypes::Ipv4);
@@ -80,6 +78,7 @@ pub fn send_arp_request(tx: &mut Box<dyn DataLinkSender>, interface: &NetworkInt
     ethernet_packet.set_payload(arp_packet.packet_mut());
 
     tx.send_to(ethernet_packet.to_immutable().packet(), Some(interface.clone()));
+    Ok(())
 }
 
 /**
@@ -165,15 +164,14 @@ impl Iterator for NetworkIterator {
  * ARP requests. If the 'forced_source_ipv4' parameter is set, it will take
  * the priority over the network interface address.
  */
-pub fn find_source_ip(network_interface: &NetworkInterface) -> Ipv4Addr {
+pub fn find_source_ip(network_interface: &NetworkInterface) -> Result<Ipv4Addr> {
 
 
     let potential_network = network_interface.ips.iter().find(|network| network.is_ipv4());
     match potential_network.map(|network| network.ip()) {
-        Some(IpAddr::V4(ipv4_addr)) => ipv4_addr,
+        Some(IpAddr::V4(ipv4_addr)) => Ok(ipv4_addr),
         _ => {
-            error!("Expected IPv4 address on network interface");
-            process::exit(1);
+            Err(eyre!("Expected ipv4 on interface"))
         }
     }
 }
@@ -185,7 +183,7 @@ pub fn find_source_ip(network_interface: &NetworkInterface) -> Ipv4Addr {
  * on the next received frame. Therefore, the receiver should have been
  * configured to stop at certain intervals (500ms for example).
  */
-pub fn receive_arp_responses(rx: &mut Box<dyn DataLinkReceiver>, timed_out: Arc<AtomicBool>, vendor_list: &mut Vendor) -> (ResponseSummary, Vec<TargetDetails>) {
+pub fn receive_arp_responses(rx: &mut Box<dyn DataLinkReceiver>, timed_out: Arc<AtomicBool>, vendor_list: &mut Vendor) -> Result<(ResponseSummary, Vec<TargetDetails>)> {
     
     let mut discover_map: HashMap<Ipv4Addr, TargetDetails> = HashMap::new();
     let start_recording = Instant::now();
@@ -207,8 +205,8 @@ pub fn receive_arp_responses(rx: &mut Box<dyn DataLinkReceiver>, timed_out: Arc<
                     // due to the lack of packets received.
                     TimedOut => continue,
                     _ => {
-                        error!("Failed to receive ARP requests ({})", error);
-                        process::exit(1);
+                        log::error!("Failed to receive ARP requests ({})", error);
+                        break;
                     }
                 };
             }
@@ -254,8 +252,8 @@ pub fn receive_arp_responses(rx: &mut Box<dyn DataLinkReceiver>, timed_out: Arc<
         
 
         if vendor_list.has_vendor_db() {
-            target_detail.vendor = vendor_list.search_by_mac(&target_detail.mac);
-            debug!("found vendor is {:?}", target_detail.vendor);
+            target_detail.vendor = vendor_list.search_by_mac(&target_detail.mac).unwrap();
+            log::debug!("found vendor is {:?}", target_detail.vendor);
         }
 
         target_detail
@@ -269,7 +267,7 @@ pub fn receive_arp_responses(rx: &mut Box<dyn DataLinkReceiver>, timed_out: Arc<
         arp_count,
         duration_ms: start_recording.elapsed().as_millis()
     };
-    (response_summary, target_details)
+    Ok((response_summary, target_details))
 }
 
 /**
@@ -292,6 +290,130 @@ fn find_hostname(ipv4: Ipv4Addr) -> Option<String> {
         },
         Err(_) => None
     }
+}
+
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SelectInterface {
+    pub name: String,
+    pub index: u32
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Host {
+    host: String,
+    mac: String,
+    vendor: String,
+    hostname: String
+}
+
+
+pub fn get_interfaces() -> Vec<SelectInterface> {
+    let mut raw_interfaces: Vec<NetworkInterface> = pnet_datalink::interfaces();
+    raw_interfaces = raw_interfaces
+        .iter()
+        .filter(|i| !i.description.to_lowercase().contains("bluetooth"))
+        .cloned()
+        .collect();
+
+    
+    raw_interfaces.sort_by(|a, b| {
+        let a_default = utils::is_default_interface(a);
+        let b_default = utils::is_default_interface(b);
+    
+        // default interfaces come first
+        b_default.cmp(&a_default)
+    });
+    let interfaces: Vec<SelectInterface> = raw_interfaces
+        .iter()
+        .map(|i| {
+            let mut name = i.description.clone();
+            if name.is_empty() {
+                name = i.name.clone();
+            }
+            SelectInterface {index: i.index, name}
+        })
+        .collect();
+
+    interfaces
+
+}
+
+pub fn scan(interface: &SelectInterface) -> Result<Vec<Host>> {
+    let interfaces = pnet_datalink::interfaces();
+    let selected = interfaces.iter().find(|i| i.index == interface.index).context("not found")?;
+    let ip_networks: Vec<&ipnetwork::IpNetwork> = selected.ips.iter().filter(|ip_network| ip_network.is_ipv4()).collect();
+    let channel_config = pnet_datalink::Config {
+        read_timeout: Some(Duration::from_millis(DATALINK_RCV_TIMEOUT)), 
+        ..pnet_datalink::Config::default()
+    };
+
+    log::debug!("scanning with {interface:?}");
+    let channel = pnet_datalink::channel(selected, channel_config)?;
+    let (mut tx, mut rx) = match channel {
+        pnet_datalink::Channel::Ethernet(tx, rx) => (tx, rx),
+        _ => {
+            return Err(eyre!("Expected an Ethernet datalink channel"));
+        }
+    };
+
+    // The 'timed_out' mutex is shared accross the main thread (which performs
+    // ARP packet sending) and the response thread (which receives and stores
+    // all ARP responses).
+    let timed_out = Arc::new(AtomicBool::new(false));
+    let cloned_timed_out = Arc::clone(&timed_out);
+    let mut vendor_list = Vendor::new();
+
+    let arp_responses = thread::spawn(move || receive_arp_responses(&mut rx, cloned_timed_out, &mut vendor_list));
+
+    let source_ip = find_source_ip(selected)?;
+    let has_reached_timeout = Arc::new(AtomicBool::new(false));
+    for _ in 0..2 {
+
+        if has_reached_timeout.load(Ordering::Relaxed) {
+            break;
+        }
+
+        let mut ip_addresses = NetworkIterator::new(&ip_networks);
+        log::debug!("doing loop in {}", ip_addresses.len());
+        for ip_address in ip_addresses {
+
+            if has_reached_timeout.load(Ordering::Relaxed) {
+                break;
+            }
+
+            if let IpAddr::V4(ipv4_address) = ip_address {
+                log::debug!("sending arp to {ipv4_address:?}");
+                send_arp_request(&mut tx, selected, source_ip, ipv4_address)?;
+                // thread::sleep(Duration::from_millis(50));
+            }
+        }
+    }
+    log::debug!("done for loop");
+
+    // Once the ARP packets are sent, the main thread will sleep for T seconds
+    // (where T is the timeout option). After the sleep phase, the response
+    // thread will receive a stop request through the 'timed_out' mutex.
+    let mut sleep_ms_mount: u64 = 0;
+    while !has_reached_timeout.load(Ordering::Relaxed) && sleep_ms_mount < 2000 {
+        log::debug!("sleeping for 100ms");
+        thread::sleep(Duration::from_millis(100));
+        sleep_ms_mount += 100;
+        log::debug!("sleep ms mount is {sleep_ms_mount}");
+    }
+    log::debug!("done while loop");
+    timed_out.store(true, Ordering::Relaxed);
+
+    let result = arp_responses.join().map_err(|e| eyre!("error: {:?}", e))?;
+    let (_, target_details) = result?;
+    log::debug!("response is {:?}", target_details);
+    let mut found_hosts: Vec<Host> = target_details
+        .iter()
+        .map(|t| Host {host: t.ipv4.to_string(), hostname: t.hostname.clone().unwrap_or_default(), mac: t.mac.to_string(), vendor: t.vendor.clone().unwrap_or_default()})
+        .collect();
+    found_hosts.sort_by(|a, b| a.mac.cmp(&b.mac));
+    Ok(found_hosts)
 }
 
 #[cfg(test)]

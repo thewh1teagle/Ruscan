@@ -22,6 +22,9 @@
       }
     },
     "bundle": {
+      "macOS": {
+        "signingIdentity": "-"
+      },
       "active": true,
       "targets": ["nsis"],
       "identifier": "ruscan",
@@ -31,9 +34,6 @@
         "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
-      ],
-      "resources": [
-        "assets/ieee-oui.csv"
       ]
     },
     "security": {

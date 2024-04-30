@@ -1,0 +1,26 @@
+[package]
+name = "network"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json = "1.0"
+eyre = { git = "https://github.com/thewh1teagle/eyre", branch = "feat/report-serialize-backtrace", features = [
+    "serialize",
+] }
+
+# Network
+pnet = "0.34"
+pnet_datalink = "0.34"
+ipnetwork = "0.20"
+dns-lookup = "2.0"
+
+# Parsing & exports
+csv = "1.2"
+serde_yaml = "0.9"
+rand = "0.8.5"
+log = "0.4.20"
+env_logger = "0.10.1"
+serde = { version = "1.0.199", features = ["derive"] }
