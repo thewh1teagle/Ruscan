@@ -8,10 +8,10 @@ repository = ""
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "1.4", features = [] }
+tauri-build = { version = "2.0.0-beta.17", features = [] }
 
 [dependencies]
-tauri = { version = "1.4", features = ["shell-open"] }
+tauri = { version = "2.0.0-beta.22", features = [] }
 serde_json = "1.0"
 eyre = { git = "https://github.com/thewh1teagle/eyre", branch = "feat/report-serialize-backtrace", features = [
     "serialize",
@@ -19,10 +19,9 @@ eyre = { git = "https://github.com/thewh1teagle/eyre", branch = "feat/report-ser
 network = { path = "../network" }
 
 # Parsing & exports
-log = "0.4.20"
-env_logger = "0.10.1"
-window-shadows = "0.2.2"
-serde = "1.0.199"
+log = "0.4.21"
+env_logger = "0.10.2"
+serde = "1.0.203"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

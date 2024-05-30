@@ -1,53 +1,49 @@
 {
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist",
-    "withGlobalTauri": false
-  },
-  "package": {
-    "productName": "ruscan",
-    "version": "0.0.2"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "fs": {
-        "scope": ["$RESOURCE/*"]
-      }
-    },
-    "bundle": {
-      "macOS": {
-        "signingIdentity": "-"
-      },
-      "active": true,
-      "targets": ["nsis"],
-      "identifier": "ruscan",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ]
-    },
+  "app": {
     "security": {
       "csp": null
     },
     "windows": [
       {
         "fullscreen": false,
-        "resizable": true,
+        "height": 600,
         "maximized": true,
+        "resizable": true,
         "title": "ruscan",
         "width": 800,
-        "height": 600
+        "shadow": true
       }
+    ],
+    "withGlobalTauri": false
+  },
+  "build": {
+    "beforeBuildCommand": "bun run build",
+    "beforeDevCommand": "bun run dev",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    },
+    "targets": [
+      "nsis"
     ]
-  }
+  },
+  "identifier": "ruscan",
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  },
+  "productName": "ruscan",
+  "version": "0.0.2"
 }
