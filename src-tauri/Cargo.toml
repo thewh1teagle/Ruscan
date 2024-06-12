@@ -13,15 +13,13 @@ tauri-build = { version = "2.0.0-beta.17", features = [] }
 [dependencies]
 tauri = { version = "2.0.0-beta.22", features = [] }
 serde_json = "1.0"
-eyre = { git = "https://github.com/thewh1teagle/eyre", branch = "feat/report-serialize-backtrace", features = [
-    "serialize",
-] }
-network = { path = "../network" }
-
-# Parsing & exports
 log = "0.4.21"
 env_logger = "0.10.2"
 serde = "1.0.203"
+blinkscan = "0.1.2"
+eyre = { git = "https://github.com/thewh1teagle/eyre", branch = "feat/report-serialize-backtrace", features = [
+    "serialize",
+] }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

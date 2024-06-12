@@ -1,5 +1,6 @@
 export interface Interface {
-    name: string,
+    name: string
+    friendly_name: string
     index: number
 }
 
@@ -23,7 +24,7 @@ export default function SelectInterface({interfaces, onChange}: SelectInterfaceP
             </div>
             <select onChange={e => localOnChange(e)} className="select select-bordered">
                 {interfaces.map((i, index) => (
-                    <option key={i.index} value={index}>{i.name}</option>
+                    <option key={i.index} value={index}>{i.friendly_name}</option>
                 ))}
             </select>
         </label>
