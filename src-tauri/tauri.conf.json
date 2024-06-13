@@ -37,7 +37,8 @@
     "targets": [
       "nsis",
       "deb",
-      "dmg"
+      "dmg",
+      "rpm"
     ]
   },
   "identifier": "ruscan",
