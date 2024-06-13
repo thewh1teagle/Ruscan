@@ -35,7 +35,9 @@
       "signingIdentity": "-"
     },
     "targets": [
-      "nsis"
+      "nsis",
+      "deb",
+      "dmg"
     ]
   },
   "identifier": "ruscan",
