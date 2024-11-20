@@ -1,4 +1,7 @@
 {
+  "productName": "ruscan",
+  "version": "1.0.0",
+  "identifier": "ruscan",
   "app": {
     "security": {
       "csp": null
@@ -41,12 +44,9 @@
       "rpm"
     ]
   },
-  "identifier": "ruscan",
   "plugins": {
     "shell": {
       "open": true
     }
-  },
-  "productName": "ruscan",
-  "version": "1.0.0"
+  }
 }

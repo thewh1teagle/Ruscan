@@ -1,27 +1,22 @@
 [package]
 name = "ruscan"
-version = "0.0.1"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+version = "0.0.0"
+description = "Scan network with rust"
+authors = ["thewh1teagle"]
+license = "MIT"
+repository = "https://github.com/thewh1teagle/ruscan"
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-beta.17", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0-beta.22", features = [] }
-serde_json = "1.0"
-log = "0.4.21"
-env_logger = "0.10.2"
-serde = "1.0.203"
+tauri = { version = "2", features = [] }
 blinkscan = "0.1.2"
+serde_json = "1.0"
+serde = "1.0.203"
 eyre = { git = "https://github.com/thewh1teagle/eyre", branch = "feat/report-serialize-backtrace", features = [
     "serialize",
 ] }
-
-[features]
-# this feature is used for production builds or when `devPath` points to the filesystem
-# DO NOT REMOVE!!
-custom-protocol = ["tauri/custom-protocol"]
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
